@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+# vr -- Vim Replace.
+#
+# Usage:
+#
+#   vr search_str replace_str target_path
+#
+# Searches for search_str and replaces it for replace_str, saves all
+# the changes creates a diff with all the changes that where made.
+# Opens all the files that were altered in vim. and the diff showing
+# all the changes made. Vim is ready to undo any that were performed
+# by the this script!
+#
+
+target='/tmp/vim_source.so'
+diff_file='/tmp/temporal.diff'
+
+# Clean target
+> $target
+
+# Search, Replace & Save.
+echo ":tabdo %s/$1/$2/g" > $target
+echo ":tabdo w" >> $target
+
+# Show diff of changes on new tab
+echo ":tabnew" >> $target
+echo ":r !git diff > $diff_file" >> $target
+echo ":e $diff_file" >> $target
+echo "/$2" >> $target
+
+vim -S $target -p `ack --ignore-dir=log --ignore-dir=tmp --ruby $1 $3 | sed 's/:.*//g' | uniq` && rm $target

@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+
+# Vim Edit.
+#
+# Usage:
+#
+#   ve search_str target_path
+#
+# Note: target_path is optional.
+#
+# Quickly searches for a string whiting a repo and opens all the files
+# that matched the content in vim. (each file in a new tab)
+#
+
+target='/tmp/vim_source.so'
+search="/$1"
+target_path="$2"
+
+function hls() {
+  echo "[0;32;1m$1[0m: $2"
+}
+
+function warn() {
+  echo "[0;33;1m$1[0m"
+}
+
+if [ "$target_path" = "" ]; then
+  hls 'No taget path given, will default to' '"."'
+  target_path='.'
+else
+  if [ -d "$target_path" ]; then
+    hls "Target path" $target_path
+  else
+    hls "Target path not found" $target_path
+    exit 0
+  fi
+fi
+
+echo $search > $target
+files=`ack --ignore-dir=log --ignore-dir=tmp --ruby "$1" $target_path | sed 's/:.*//g' | uniq`
+
+if [ "$files" == "" ]; then
+  warn 'No files found.'
+  exit 0
+else
+  hls "Searching for" $search
+  hls "Opening files" ''
+  echo ''
+  for i in $files; do
+    hls "  -  " $i
+  done
+  echo ''
+  vim -S $target -p $files
+fi
