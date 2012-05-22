@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+
+# arre program converts stdin into arrays.
+#
+# it is called 'arre' because 'arreglo' in spanish means 'array'.
+#
+# arre is a spanish slang-word used in northern mexico meaning:
+# "okay, or let's do it. or I like that!
+#
+# BEHAVIOUR:
+#
+# by default arre will convert anything that matches /\w+/ from stdin into an array.
+# if you don't want that behaviour just pass a regexp as an argument to it.
+#
+# USAGE:
+#
+# kazu@utopia:~/dev/git/breeze$ echo a b c | arre
+# ["a", "b", "c"]
+# kazu@utopia:~/dev/git/breeze$ echo 1  a 2  b 3  c | arre '/\d+/'
+# ["1", "2", "3"]
+# kazu@utopia:~/dev/git/breeze$ echo 1  a 2  b 3  c | arre '/[a-z]+/'
+# ["a", "b", "c"]
+# kazu@utopia:~/dev/git/breeze$ git log -2 | arre '/[a-z0-9]{40}/'
+# ["2dd6d1d7bacb0ab6a34073beb09f8eb6037b0cc1", "4111de8172c98a77624914d66af7f09736fdd67e"]
+# kazu@utopia:~/dev/git/breeze$
+#
+
+if [ "$1" = "" ]; then
+  scan_for='/\w+/'
+else
+  scan_for="$1"
+fi
+
+# echo $scan_for
+
+cat /dev/stdin | ruby -e "puts STDIN.read.scan($scan_for).inspect"
+
