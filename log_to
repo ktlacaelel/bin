@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+name=$1
+
+sudo mkdir /var/log/$name
+sudo chmod 755 /var/log/$name
+sudo touch /var/log/$name/$name.log
+sudo chmod 666 /var/log/$name/$name.log
+
+echo You may now log to: /var/log/$name/$name.log
+

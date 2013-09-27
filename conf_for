@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+name=$1
+
+sudo mkdir /etc/$name
+sudo chmod 755 /etc/$name
+sudo touch /etc/$name/configuration.json
+sudo chmod 644 /etc/$name/configuration.json
+
+echo You may now configure to: /etc/$name/configuration.json
+
