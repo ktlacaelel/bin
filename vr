@@ -29,4 +29,4 @@ echo ":r !git diff > $diff_file" >> $target
 echo ":e $diff_file" >> $target
 echo "/$2" >> $target
 
-vim -S $target -p `ack --ignore-dir=log --ignore-dir=tmp --ruby $1 $3 | sed 's/:.*//g' | uniq` && rm $target
+vim -S $target -p `ack --ignore-dir=log --ignore-dir=tmp $1 $3 | sed 's/:.*//g' | uniq` && rm $target
