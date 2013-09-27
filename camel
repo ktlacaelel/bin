@@ -1,0 +1,4 @@
+#!/usr/bin/env ruby
+
+puts STDIN.read.gsub(/[^\w]+/, '_').gsub(/[_]+/, '_').gsub(/^_/, '').gsub(/_$/, '').
+  downcase.scan(/[a-z]+/).map { |word| word[0..0].upcase + word[1..-1] } * ''
