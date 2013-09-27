@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+# http://stackoverflow.com/questions/6980090/bash-read-from-file-or-stdin
+
+string=''
+while read line
+do
+  string="$string$line"
+done
+echo ''
+echo $string | graph-easy --as=ascii | sed 's/^/    /g'
+echo ''
+echo "    echo \"$string\" | graph-easy --as=ascii"
