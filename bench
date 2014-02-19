@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+# http://www.cyberciti.biz/tips/howto-performance-benchmarks-a-web-server.html 
+
+url=$1
+command="ab -n 10000 -c 100 -g /tmp/bench.dat $url"
+
+echo $command
+eval $command
+
+echo 'set terminal png' > /tmp/bench.plot
+echo 'set output "/tmp/bench.png"' >> /tmp/bench.plot
+echo 'set title "$command"' >> /tmp/bench.plot
+echo 'set size 1,0.7' >> /tmp/bench.plot
+echo 'set grid y' >> /tmp/bench.plot
+echo 'set xlabel "request"' >> /tmp/bench.plot
+echo 'set ylabel "response time (ms)"' >> /tmp/bench.plot
+echo 'plot "/tmp/bench.dat" using 9 smooth sbezier with lines title "dso + mod_ruid2", \' >> /tmp/bench.plot
+echo ' "/tmp/bench.dat" using 9 smooth sbezier with lines title "suphp"' >> /tmp/bench.plot
+
+gnuplot /tmp//bench.plot
+open 

@@ -1,0 +1,14 @@
+#!/usr/bin/env ruby
+
+STDIN.each do |line|
+  object = {}
+  line.split(/\s+/).each_with_index do |column, index|
+    header = ARGV[index]
+    if column =~ /^\d+$/
+      object[:"#{header}"] = column.to_i
+    else
+      object[:"#{header}"] = column
+    end
+  end
+  puts object.inspect + ', '
+end

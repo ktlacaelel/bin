@@ -3,14 +3,13 @@
 # Dont filter, simply highlight a given keyworkd from stdin.
 # Usage: $ cat log/development.log | hls completed
 
-require 'rubygems'
-require 'isna'
-
 abort 'No pattern given' if ARGV[0].nil?
 
 trap('SIGINT') { }
 
-STDIN.each_line do |line|
-  puts line.gsub(/(#{ARGV[0]})/i) { |x| "#{$1}".to_ansi.blink.green.to_s }
+$stdout.sync = true
+
+STDIN.each do |line|
+  puts line.gsub(/(#{ARGV[0]})/i) { |x| "[0;31;1m#{$1}[0m" }
 end
 
