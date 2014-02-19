@@ -1,3 +1,10 @@
 #!/usr/bin/env bash
 
-vim -p `cat /tmp/files  | grep $1 | grep -v assets`
+if [ -f ".opfile" ]; then
+    echo "Searching.."
+else
+    echo "Database not found: .opfile"
+    exit 1
+fi
+
+vim -p `cat .opfile | grep $1 | grep -v assets`
