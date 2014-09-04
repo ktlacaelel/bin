@@ -1,0 +1,351 @@
+#!/usr/bin/env ruby
+# encoding: utf-8
+
+# Percentage bar.
+#
+# Usage:
+#
+# items  = (1..100).to_a
+# size   = (10..100).to_a
+# length = size.shuffle.first
+# 
+# items.each do |item|
+#   puts Percentage.new(100, item, length).to_bar
+# end
+#
+class Percentage
+  def initialize(product, divisor, scale = 100)
+    @product        = product
+    @scale          = scale
+    @pre_percentage = (divisor * @scale / product).to_f
+    @percentage     = (@pre_percentage * 100 / @scale)
+  end
+  def to_i
+    @percentage.to_i
+  end
+  def to_f
+    @percentage.to_f
+  end
+
+  # 0   ~  50   green
+  # 50  ~  80   yellow
+  # 80  ~  100  red
+  def to_bar(color = true)
+    filling = ('=' * @pre_percentage.to_i)
+    padding = 0
+    if color
+      if to_i >= 0 and to_i < 50
+        filling = "[0;32;1m" + ('=' * @pre_percentage.to_i) + "[0m"
+      end
+      if to_i >= 50 and to_i < 80
+        filling = "[0;33;1m" + ('=' * @pre_percentage.to_i) + "[0m"
+      end
+      if to_i >= 80
+        filling = "[0;31;1m" + ('=' * @pre_percentage.to_i) + "[0m"
+      end
+      if filling.size > 0
+        padding = 13
+      end
+    end
+    bindings = [@percentage, '%', filling]
+    "%-10.4f %s [%-#{@scale + padding}s]" % bindings
+  end
+end
+
+# Usage:
+#
+# sample = [2, 4, 4, 4, 5, 5, 7, 9]
+# puts sample.to_stat
+#
+# #=> mean: 5, standard deviation: 2.0
+#
+# http://easycalculation.com/statistics/standard-deviation.php
+# http://en.wikipedia.org/wiki/Standard_deviation
+#
+class Array
+
+  def mean
+    product = 0;
+    each do |number|
+      product += number
+    end
+    product / size
+  end
+
+  def median
+    return size[0] if size == 1
+    self[(size + 1) / 2]
+  end
+
+  def sum_of_squares(avg = nil)
+    avg = mean unless avg
+    sqares = map do |number|
+      result = number - avg
+      result ** 2
+    end
+    sqares.sum
+  end
+
+  def variance(minus = 0)
+    sum_of_squares / (size - minus)
+  end
+
+  def standard_deviation
+    Math.sqrt(variance(1.5))
+  end
+
+  def population_standard_deviation
+    Math.sqrt(variance(0))
+  end
+
+  def sample_standard_deviation
+    med = median
+    sqr = map do |number|
+      result = number - med
+      result ** 2
+    end
+    Math.sqrt(sqr.mean)
+  end
+
+  def sum
+    inject do |cumulative, value|
+      cumulative += value
+    end
+  end
+
+  def sigmas(length, sigma)
+    avg = mean
+    list = []
+    length.times { |n| list << avg - ((n + 1) * sigma) }
+    list << avg
+    length.times { |n| list << avg + ((n + 1) * sigma) }
+    list.sort
+  end
+
+  def to_bell(text, base = :population)
+    if base == :population
+      sigma = population_standard_deviation
+    end
+    if base == :sample
+      sigma = sample_standard_deviation
+    end
+    if base == :normal
+      sigma = standard_deviation
+    end
+    total = size
+    avg = mean
+    sigmas_copy = sigmas(10, sigma)
+    puts ''
+    puts "#{text} Normal distribution for a #{base} standard distribution. (#{sigma})"
+    puts '-' * 80
+    groups = group_by do |number|
+      return_value = nil
+      sigmas_copy.each_with_index do |sigma, index|
+        if number < sigma
+          if number > sigmas_copy[index -1]
+            return_value = sigma
+          end
+        end
+        unless return_value
+          if number == sigma
+            return_value = sigma
+          end
+        end
+      end
+      return_value
+    end
+    sigmas_copy.each_with_index do |sigma, index|
+      if groups[sigma]
+        size = groups[sigma].size
+        percent = size * 100.0 / total
+        res = '|' * (percent / 10).to_i
+      else
+        percent = 0
+        size = 0
+        res = ''
+      end
+      chain = []
+      chain << (index - sigmas_copy.size / 2).to_s
+      chain << (size.to_s)
+      chain << ('%.4f' % sigma)
+      if percent == 0
+        chain << ''
+      else
+        chain << '->>'
+      end
+      chain << ('%.4f' % percent) + ' %'
+      str = chain.map { |item| item.to_s.rjust(10, ' ') }.join(' ') + ' ' + res
+      puts str
+    end
+    if groups[nil]
+      puts "#{groups[nil].size} outliers: => #{groups[nil].sort.inspect}"
+    end
+  end
+
+  def to_stat(padding = 15)
+    symbols  = ['x', 'µ', 'σ', 'P', 'S', 'VP', 'VS', 'N', '∑x']
+    template = symbols.map { |symbol| "#{symbol}:%-#{padding}.2f" }
+    template = template.join(' ')
+    bindings = [
+      median,
+      mean,
+      standard_deviation,
+      population_standard_deviation,
+      sample_standard_deviation,
+      variance(1),
+      variance(0),
+      size,
+      sum
+    ]
+    template % bindings
+  end
+
+end
+
+# =============================================================================
+
+if ARGV.include?('--help')
+  puts 'Hypothesis crunches data and performs statistical analysis.'
+  puts ''
+  puts 'USAGE'
+  puts ''
+  puts '  $ cat some_file | hypothesis'
+  puts ''
+  puts 'INPUT'
+  puts ''
+  puts '  Send data to STDIN in a key value format.'
+  puts '  KEYS must be strings no bigger than ten chars'
+  puts '  VALUES must be numeric floats or integers'
+  puts '  each line must be KEY VALUE separated by a space in between'
+  puts '  then terminate with an EOL'
+  puts ''
+  puts 'EXAMPLE'
+  puts ''
+  puts '  Key value format is explained below'
+  puts '  "|" char means begining of line in a file.'
+  puts ''
+  puts '  -----------------------------------'
+  puts '  |group-a 1'
+  puts '  |group-a 3'
+  puts '  |group-b 2'
+  puts '  |group-b 1'
+  puts '  |group-c 3'
+  puts '  |group-c 5'
+  puts ''
+  puts ' NOTES!'
+  puts ''
+  puts '   x = Median.'
+  puts '   µ = Average / Mean.'
+  puts '   σ = Sigma or Standard Deviation.'
+  puts '   P = Population Standard Deviation.'
+  puts '   S = Sample Standard Deviation.'
+  puts '  VP = Variance of a population.'
+  puts '  VS = Variance of a sample.'
+  puts '   N = Number of elements in the sample/population.'
+  puts '  ∑x = Product of elements in the sample/population.'
+  puts ''
+  puts '   Heva fun!'
+  puts ''
+  exit 0
+end
+
+# =============================================================================
+
+sample = { }
+
+STDIN.each do |line|
+  key, value = line.split(/\s+/)
+  sample[key] ||= {} 
+  sample[key][:data] ||= []
+  if sample[key][:total]
+    sample[key][:total] += value.to_f
+  else
+    sample[key][:total] = value.to_f
+  end
+  sample[key][:data] << value.to_f
+end
+
+def print_header(title)
+  puts ''
+  puts title
+  puts '-' * 80
+end
+
+$stdin.sync = true
+
+grand_total      = 0
+number_of_groups = 0
+categories       = sample.keys.sort
+
+print_header 'Statistical breakdown'
+categories.each do |category|
+  grand_total      += sample[category][:total]
+  number_of_groups += 1
+  puts "%-10s %-s" % [category, sample[category][:data].to_stat]
+end
+
+print_header 'Percentage breakdown per category'
+categories.each do |category|
+  percentage = Percentage.new(grand_total, sample[category][:data].sum)
+  puts "%-10s %-s" % [category, percentage.to_bar]
+end
+
+categories.each do |category|
+  sample[category][:data].to_bell(category, :sample)
+end
+
+# All ANOVA goes below.
+# ==============================================================================
+
+if sample.size < 2
+  puts "You must provide at least two groups for an anova calculation."
+  exit 0
+end
+
+if sample.map { |k, v| v[:data].size }.uniq.size > 1
+  puts "All groups must have the same size in order for a reliable anova calculation."
+  exit 0
+end
+
+# In anova we first grab the grand mean.
+# eaither by individually or altogether.
+
+sum_of_sizes = 0
+sample.each do |name, data|
+    sum_of_sizes += data[:data].size
+end
+grand_mean = grand_total / sum_of_sizes
+
+# Next we want to extract the sum of squares using the grand mean.
+sum_of_squares_total = 0
+sum_of_squares_within = 0
+sum_of_squares_between = 0
+
+sample.each do |name, data|
+  sum_of_squares_total += data[:data].sum_of_squares(grand_mean)
+  sum_of_squares_within += data[:data].sum_of_squares
+  sum_of_squares_between += (data[:data].size * ((data[:data].mean - grand_mean) ** 2))
+end
+
+degrees_of_freedom_between = number_of_groups - 1;
+degrees_of_freedom_within = number_of_groups * (sample.first[1][:data].size - 1);
+
+f_test = (sum_of_squares_between / degrees_of_freedom_between) / (sum_of_squares_within / degrees_of_freedom_within)
+
+output = { 
+    :number_of_groups           => number_of_groups,
+    :grand_total                => grand_total,
+    :grand_mean                 => grand_mean,
+    :sum_of_squares_total       => sum_of_squares_total,
+    :sum_of_squares_within      => sum_of_squares_within,
+    :sum_of_squares_between     => sum_of_squares_between,
+    :degrees_of_freedom_within  => degrees_of_freedom_within,
+    :degrees_of_freedom_between => degrees_of_freedom_between,
+    :f_test                     => f_test,
+    :f_bars                     => '|' * f_test,
+}
+
+print_header 'ANOVA Breakdown.'
+output.keys.map { |key| key.to_s }.sort.each do |key|
+  puts "#{key.to_s.ljust(40, '.')} #{output[key.to_sym].to_s}"
+end
