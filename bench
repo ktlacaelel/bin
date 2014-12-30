@@ -1,22 +1,64 @@
 #!/usr/bin/env bash
 
+function usage() {
+    echo ""
+    echo "Usage: $ bench [REQUESTS PER SECOND] [TOTAL REQUESTS] http://domain.tld/"
+    echo ""
+}
+
+if [ "$1" == "" ]; then
+    usage
+    exit 0
+fi
+
+if [ "$2" == "" ]; then
+    usage
+    exit 0
+fi
+
+if [ "$3" == "" ]; then
+    usage
+    exit 0
+fi
+
+requests_per_second=$1
+total_requests=$2
+url=$3
+
+target_dir='bench'
+timestamp=`date "+%s"`
+working_dir=$target_dir/`echo $url | snake`/$timestamp/
+gzip='Accept-Encoding: gzip,deflate;'
+
+benchmark_dat="$working_dir/benchmark.dat.txt"
+benchmark_out="$working_dir/benchmark.out.txt"
+benchmark_plot="$working_dir/benchmark.plot.txt"
+benchmark_png="$working_dir/benchmark.png"
+benchmark_sh="$working_dir/benchmark.sh"
+
+command="ab -n $total_requests -c $requests_per_second -g $benchmark_dat -H '$gzip' $url"
+
+mkdir -p $working_dir
+echo $command > $benchmark_sh
+ls $benchmark_sh
+cat $benchmark_sh
+
+eval $command > $benchmark_out
+
+echo "
+set terminal png
+set output \"$benchmark_png\"
+set title '$requests_per_second requests per second, $total_requests total requests.'
+set size 1,0.7
+set grid y
+set xlabel \"request\"
+set ylabel \"response time (ms)\"
+plot \"$benchmark_dat\" using 9 smooth sbezier with lines title \"dso + mod_ruid2\", \"$benchmark_dat\" using 9 smooth sbezier with lines title \"suphp\"
+" > $benchmark_plot
+
+gnuplot $benchmark_plot
+
+open $working_dir
+
 # http://www.cyberciti.biz/tips/howto-performance-benchmarks-a-web-server.html 
 
-url=$1
-command="ab -n 10000 -c 100 -g /tmp/bench.dat $url"
-
-echo $command
-eval $command
-
-echo 'set terminal png' > /tmp/bench.plot
-echo 'set output "/tmp/bench.png"' >> /tmp/bench.plot
-echo 'set title "$command"' >> /tmp/bench.plot
-echo 'set size 1,0.7' >> /tmp/bench.plot
-echo 'set grid y' >> /tmp/bench.plot
-echo 'set xlabel "request"' >> /tmp/bench.plot
-echo 'set ylabel "response time (ms)"' >> /tmp/bench.plot
-echo 'plot "/tmp/bench.dat" using 9 smooth sbezier with lines title "dso + mod_ruid2", \' >> /tmp/bench.plot
-echo ' "/tmp/bench.dat" using 9 smooth sbezier with lines title "suphp"' >> /tmp/bench.plot
-
-gnuplot /tmp//bench.plot
-open 
