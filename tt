@@ -1,0 +1,16 @@
+#!/usr/bin/env ruby
+
+STDIN.each_line do |line|
+  chunks = line.scan('    ')
+  if chunks.size == 0
+    puts line
+    next
+  end
+  remain = line.gsub(/^\s+/, '')
+  tree = chunks.map { |x| x }
+  padd = chunks.map { |x| x }
+  tree[chunks.size - 1] = ' +-> '
+  padd[chunks.size - 1] = ' |   '
+  puts padd.join('')
+  puts tree.join('') + remain
+end

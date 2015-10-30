@@ -1,9 +1,9 @@
 #!/usr/bin/env ruby
 # encoding: utf-8
 
+require 'fileutils'
+
 # Percentage bar.
-#
-# Usage:
 #
 # items  = (1..100).to_a
 # size   = (10..100).to_a
@@ -16,7 +16,7 @@
 class Percentage
   def initialize(product, divisor, scale = 100)
     @product        = product
-    @scale          = scale
+    @scale          = scale - 5
     @pre_percentage = (divisor * @scale / product).to_f
     @percentage     = (@pre_percentage * 100 / @scale)
   end
@@ -30,25 +30,25 @@ class Percentage
   # 0   ~  50   green
   # 50  ~  80   yellow
   # 80  ~  100  red
-  def to_bar(color = true)
-    filling = ('=' * @pre_percentage.to_i)
+  def to_bar(color = true, bar = '|')
+    filling = (bar * @pre_percentage.to_i)
     padding = 0
     if color
       if to_i >= 0 and to_i < 50
-        filling = "[0;32;1m" + ('=' * @pre_percentage.to_i) + "[0m"
+        filling = "[0;32;1m" + (bar * @pre_percentage.to_i) + "[0m"
       end
       if to_i >= 50 and to_i < 80
-        filling = "[0;33;1m" + ('=' * @pre_percentage.to_i) + "[0m"
+        filling = "[0;33;1m" + (bar * @pre_percentage.to_i) + "[0m"
       end
       if to_i >= 80
-        filling = "[0;31;1m" + ('=' * @pre_percentage.to_i) + "[0m"
+        filling = "[0;31;1m" + (bar * @pre_percentage.to_i) + "[0m"
       end
       if filling.size > 0
         padding = 13
       end
     end
-    bindings = [@percentage, '%', filling]
-    "%-10.4f %s [%-#{@scale + padding}s]" % bindings
+    bindings = [filling, to_f, '%']
+    "[%-#{@scale + padding}s%5.1f%s]" % bindings
   end
 end
 
@@ -136,7 +136,8 @@ class Array
     avg = mean
     sigmas_copy = sigmas(10, sigma)
     puts ''
-    puts "#{text} Normal distribution for a #{base} standard distribution. (#{sigma})"
+    puts "#{text} Normal distribution for a #{base} standard distribution."
+    puts "  (#{sigma})"
     puts '-' * 80
     groups = group_by do |number|
       return_value = nil
@@ -154,30 +155,56 @@ class Array
       end
       return_value
     end
+
+    template = "%6s %15s   %-10s %-8s %s"
+    headers = ['sigma', 'deviation', 'samples', 'presence', 'probability']
+    puts template % headers 
+    template = "%6s %15.4f   %-10s %-8s %s"
+
+    if $dump
+      FileUtils.mkdir_p('hypothesis')
+    end
+
     sigmas_copy.each_with_index do |sigma, index|
-      if groups[sigma]
-        size = groups[sigma].size
-        percent = size * 100.0 / total
-        res = '|' * (percent / 10).to_i
+
+      size    = groups[sigma] ? groups[sigma].size : 0
+      percent = Percentage.new(total, size, 32)
+
+      bell_line = []
+      bell_line << (index - sigmas_copy.size / 2).to_s
+      bell_line << sigma
+      bell_line << (size.to_s)
+
+      if size > 0
+        bell_line << '->>'
       else
-        percent = 0
-        size = 0
-        res = ''
+        bell_line << ''
       end
-      chain = []
-      chain << (index - sigmas_copy.size / 2).to_s
-      chain << (size.to_s)
-      chain << ('%.4f' % sigma)
-      if percent == 0
-        chain << ''
-      else
-        chain << '->>'
+
+      bell_line << percent.to_bar
+      puts template % bell_line
+
+      if $dump
+        # Dump group data.
+        File.open("hypothesis/sigma_#{(index - sigmas_copy.size / 2)}.rb", 'w+') do |file|
+          file.puts({
+            :index   => index,
+            :sigma   => (index - sigmas_copy.size / 2),
+            :base    => base,
+            :samples => groups[sigma]
+          }).inspect
+        end
       end
-      chain << ('%.4f' % percent) + ' %'
-      str = chain.map { |item| item.to_s.rjust(10, ' ') }.join(' ') + ' ' + res
-      puts str
+
     end
     if groups[nil]
+      if $dump
+        File.open("hypothesis/outliers.rb", 'w+') do |file|
+          file.puts({
+            :outliers => groups[nil].sort.inspect
+          }).inspect
+        end
+      end
       puts "#{groups[nil].size} outliers: => #{groups[nil].sort.inspect}"
     end
   end
@@ -248,8 +275,19 @@ if ARGV.include?('--help')
   puts ''
   exit 0
 end
+if ARGV.include?('--dump')
+  $dump = true
+end
 
 # =============================================================================
+
+def print_header(title)
+  puts ''
+  puts title
+  puts '-' * 80
+end
+
+$stdin.sync = true
 
 sample = { }
 
@@ -265,13 +303,7 @@ STDIN.each do |line|
   sample[key][:data] << value.to_f
 end
 
-def print_header(title)
-  puts ''
-  puts title
-  puts '-' * 80
-end
-
-$stdin.sync = true
+print_header "Report Generated on: #{Time.now}"
 
 grand_total      = 0
 number_of_groups = 0
@@ -281,13 +313,14 @@ print_header 'Statistical breakdown'
 categories.each do |category|
   grand_total      += sample[category][:total]
   number_of_groups += 1
-  puts "%-10s %-s" % [category, sample[category][:data].to_stat]
+  puts "%-25s %-s" % [category, sample[category][:data].to_stat]
 end
 
 print_header 'Percentage breakdown per category'
 categories.each do |category|
-  percentage = Percentage.new(grand_total, sample[category][:data].sum)
-  puts "%-10s %-s" % [category, percentage.to_bar]
+  percentage = Percentage.new(grand_total, sample[category][:data].sum, 66)
+  # puts "%-10s %-s" % [category, percentage.to_bar]
+  puts "%-s %s" % [percentage.to_bar, category]
 end
 
 categories.each do |category|
@@ -298,12 +331,17 @@ end
 # ==============================================================================
 
 if sample.size < 2
-  puts "You must provide at least two groups for an anova calculation."
+  print_header "You must provide at least two groups for an anova calculation."
   exit 0
 end
 
 if sample.map { |k, v| v[:data].size }.uniq.size > 1
-  puts "All groups must have the same size in order for a reliable anova calculation."
+  print_header "All groups must have the same size in order for a reliable anova calculation."
+  exit 0
+end
+
+if sample.map { |k, v| v[:data].size }.all? { |data_size| data_size == 1 }
+  print_header "You must provide more samples for each category."
   exit 0
 end
 
@@ -333,19 +371,20 @@ degrees_of_freedom_within = number_of_groups * (sample.first[1][:data].size - 1)
 f_test = (sum_of_squares_between / degrees_of_freedom_between) / (sum_of_squares_within / degrees_of_freedom_within)
 
 output = { 
-    :number_of_groups           => number_of_groups,
-    :grand_total                => grand_total,
-    :grand_mean                 => grand_mean,
-    :sum_of_squares_total       => sum_of_squares_total,
-    :sum_of_squares_within      => sum_of_squares_within,
-    :sum_of_squares_between     => sum_of_squares_between,
-    :degrees_of_freedom_within  => degrees_of_freedom_within,
-    :degrees_of_freedom_between => degrees_of_freedom_between,
-    :f_test                     => f_test,
-    :f_bars                     => '|' * f_test,
+  :number_of_groups           => number_of_groups,
+  :grand_total                => grand_total,
+  :grand_mean                 => grand_mean,
+  :sum_of_squares_total       => sum_of_squares_total,
+  :sum_of_squares_within      => sum_of_squares_within,
+  :sum_of_squares_between     => sum_of_squares_between,
+  :degrees_of_freedom_within  => degrees_of_freedom_within,
+  :degrees_of_freedom_between => degrees_of_freedom_between,
+  :f_test                     => f_test,
+  :f_bars                     => '|' * f_test,
 }
 
 print_header 'ANOVA Breakdown.'
 output.keys.map { |key| key.to_s }.sort.each do |key|
   puts "#{key.to_s.ljust(40, '.')} #{output[key.to_sym].to_s}"
 end
+

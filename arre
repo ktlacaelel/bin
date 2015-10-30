@@ -36,6 +36,6 @@ fi
 if [ "$2" = "" ]; then
   cat /dev/stdin | ruby -e "puts STDIN.read.scan($scan_for).inspect"
 else
-  cat /dev/stdin | ruby -e "puts STDIN.read.scan($scan_for) * '$2'"
+  cat /dev/stdin | ruby -e "puts STDIN.read.scan($scan_for) * \"$2\""
 fi
 
