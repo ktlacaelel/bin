@@ -70,6 +70,7 @@ Dir.mktmpdir do |dir|
     script.puts "set grid"
     script.puts "set timestamp"
     script.puts "plot '#{data_path}' notitle with points lc rgb '#FF00FF'"
+    # script.puts "plot '#{data_path}' notitle with points lc rgb '#FF00FF' pointtype 8"
     script.puts "quit"
   end
 
