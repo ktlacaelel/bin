@@ -62,14 +62,14 @@ Dir.mktmpdir do |dir|
   end
 
   File.open(script_path, 'w+') do |script|
-    script.puts "set term png"
+    script.puts "set term png size 800,600"
     script.puts "set output \"#{options[:output]}.png\""
     script.puts "set title \"#{options[:title]}\""
     script.puts "set xlabel \"#{options[:x_label]}\""
     script.puts "set ylabel \"#{options[:y_label]}\""
     script.puts "set grid"
     script.puts "set timestamp"
-    script.puts "plot '#{data_path}' notitle"
+    script.puts "plot '#{data_path}' notitle with points lc rgb '#FF00FF'"
     script.puts "quit"
   end
 
