@@ -1,0 +1,21 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'json'
+
+STDIN.each_line do |line|
+  begin
+    object = JSON.parse(line)
+    string = []
+    ARGV.each do |argument|
+      if object[argument]
+        string.push(object[argument])
+      end
+    end
+    if string.size > 0
+      puts string.join("\t")
+    end
+  rescue => error
+    puts error.message
+  end
+end
