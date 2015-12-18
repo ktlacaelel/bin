@@ -1,5 +1,9 @@
 #!/usr/bin/env ruby
 
+
+# Reads json strings (one per line) from stdin.
+# you pass keys as arguments and those are printed out as columns.
+
 require 'rubygems'
 require 'json'
 
