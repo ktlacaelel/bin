@@ -324,7 +324,7 @@ categories.each do |category|
 end
 
 categories.each do |category|
-  sample[category][:data].to_bell(category, :sample)
+  sample[category][:data].to_bell(category, :normal)
 end
 
 # All ANOVA goes below.
