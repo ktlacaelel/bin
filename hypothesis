@@ -2,6 +2,7 @@
 # encoding: utf-8
 
 require 'fileutils'
+require 'optparse'
 
 # Percentage bar.
 #
@@ -122,7 +123,7 @@ class Array
     list.sort
   end
 
-  def to_bell(text, base = :population)
+  def to_bell(text, base = :population, kazu_dev = 1)
     if base == :population
       sigma = population_standard_deviation
     end
@@ -134,7 +135,9 @@ class Array
     end
     total = size
     avg = mean
-    sigmas_copy = sigmas(10, sigma)
+
+    sigmas_copy = sigmas(10 * kazu_dev, sigma / kazu_dev)
+
     puts ''
     puts "#{text} Normal distribution for a #{base} standard distribution."
     puts "  (#{sigma})"
@@ -279,6 +282,20 @@ if ARGV.include?('--dump')
   $dump = true
 end
 
+
+@options = {}
+
+@options[:kazus_deviation] = 1
+OptionParser.new do |opts|
+
+  opts.banner = "Usage: example.rb [options]"
+
+  opts.on("-k", "--kazus-deviation [N]", "Expand the bell to expose kazu's deviation.") do |value|
+    @options[:kazus_deviation] = value
+  end
+
+end.parse!
+
 # =============================================================================
 
 def print_header(title)
@@ -324,7 +341,7 @@ categories.each do |category|
 end
 
 categories.each do |category|
-  sample[category][:data].to_bell(category, :normal)
+  sample[category][:data].to_bell(category, :normal, @options[:kazus_deviation].to_i)
 end
 
 # All ANOVA goes below.
