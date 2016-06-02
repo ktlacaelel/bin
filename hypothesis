@@ -123,20 +123,24 @@ class Array
     list.sort
   end
 
-  def to_bell(text, base = :population, kazu_dev = 1)
+  def to_bell(text, standard_deviations_to_show = 3, base = :population, kazu_dev = 1)
+
     if base == :population
       sigma = population_standard_deviation
     end
+
     if base == :sample
       sigma = sample_standard_deviation
     end
+
     if base == :normal
       sigma = standard_deviation
     end
-    total = size
-    avg = mean
 
-    sigmas_copy = sigmas(10 * kazu_dev, sigma / kazu_dev)
+    total = size
+    avg   = mean
+
+    sigmas_copy = sigmas(standard_deviations_to_show * kazu_dev, sigma / kazu_dev)
 
     puts ''
     puts "#{text} Normal distribution for a #{base} standard distribution."
@@ -164,17 +168,13 @@ class Array
     puts template % headers 
     template = "%6s %15.4f   %-10s %-8s %s"
 
-    if $dump
-      FileUtils.mkdir_p('hypothesis')
-    end
-
     sigmas_copy.each_with_index do |sigma, index|
 
       size    = groups[sigma] ? groups[sigma].size : 0
       percent = Percentage.new(total, size, 32)
 
       bell_line = []
-      bell_line << (index - sigmas_copy.size / 2).to_s
+      bell_line << "%3.3f" % ((index - sigmas_copy.size / 2) / kazu_dev.to_f)
       bell_line << sigma
       bell_line << (size.to_s)
 
@@ -187,27 +187,8 @@ class Array
       bell_line << percent.to_bar
       puts template % bell_line
 
-      if $dump
-        # Dump group data.
-        File.open("hypothesis/sigma_#{(index - sigmas_copy.size / 2)}.rb", 'w+') do |file|
-          file.puts({
-            :index   => index,
-            :sigma   => (index - sigmas_copy.size / 2),
-            :base    => base,
-            :samples => groups[sigma]
-          }).inspect
-        end
-      end
-
     end
     if groups[nil]
-      if $dump
-        File.open("hypothesis/outliers.rb", 'w+') do |file|
-          file.puts({
-            :outliers => groups[nil].sort.inspect
-          }).inspect
-        end
-      end
       puts "#{groups[nil].size} outliers: => #{groups[nil].sort.inspect}"
     end
   end
@@ -215,7 +196,7 @@ class Array
   def to_stat(padding = 15)
     symbols  = ['x', 'µ', 'σ', 'P', 'S', 'VP', 'VS', 'N', '∑x']
     template = symbols.map { |symbol| "#{symbol}:%-#{padding}.2f" }
-    template = template.join(' ')
+    template = template.join(" ")
     bindings = [
       median,
       mean,
@@ -234,12 +215,20 @@ end
 
 # =============================================================================
 
-if ARGV.include?('--help')
+def print_header(title)
+  puts ''
+  puts title
+  puts '-' * 80
+end
+
+# =============================================================================
+
+def print_help
   puts 'Hypothesis crunches data and performs statistical analysis.'
   puts ''
   puts 'USAGE'
   puts ''
-  puts '  $ cat some_file | hypothesis'
+  puts '  $ cat some_file | ix hypothesis'
   puts ''
   puts 'INPUT'
   puts ''
@@ -276,33 +265,53 @@ if ARGV.include?('--help')
   puts ''
   puts '   Heva fun!'
   puts ''
-  exit 0
-end
-if ARGV.include?('--dump')
-  $dump = true
 end
 
+# =============================================================================
 
 @options = {}
 
 @options[:kazus_deviation] = 1
+@options[:sigma] = 3
+@options[:distribution] = :normal
+
 OptionParser.new do |opts|
 
-  opts.banner = "Usage: example.rb [options]"
+  opts.banner = "USAGE: #{File.basename($0)} [OPTIONS]"
 
-  opts.on("-k", "--kazus-deviation [N]", "Expand the bell to expose kazu's deviation.") do |value|
+  help_string = 'Expand the bell to expose kazu\'s deviation.'
+  opts.on('-k', '--kazus-deviation [N]', OptionParser::DecimalInteger, help_string) do |value|
     @options[:kazus_deviation] = value
+  end
+
+  help_string = 'How many standard deviations (sigmas) to show'
+  opts.on('-s', '--sigma [N]', OptionParser::DecimalInteger, help_string) do |value|
+    @options[:sigma] = value
+  end
+
+  help_string = 'Render analysis as a normal standard deviation'
+  opts.on('-n', '--normal', help_string) do |value|
+    @options[:distribution] = :normal
+  end
+
+  help_string = 'Render analysis as a population standard deviation'
+  opts.on('-p', '--population', help_string) do |value|
+    @options[:distribution] = :population
+  end
+
+  help_string = 'Render analysis as a sample standard deviation'
+  opts.on('-a', '--sample', help_string) do |value|
+    @options[:distribution] = :sample
+  end
+
+  opts.on('-e', '--example', 'Give me more iformation about this program') do |value|
+    print_help
+    exit 0
   end
 
 end.parse!
 
 # =============================================================================
-
-def print_header(title)
-  puts ''
-  puts title
-  puts '-' * 80
-end
 
 $stdin.sync = true
 
@@ -341,7 +350,12 @@ categories.each do |category|
 end
 
 categories.each do |category|
-  sample[category][:data].to_bell(category, :normal, @options[:kazus_deviation].to_i)
+  sample[category][:data].to_bell(
+    category,
+    @options[:sigma],
+    @options[:distribution],
+    @options[:kazus_deviation]
+  )
 end
 
 # All ANOVA goes below.
@@ -397,7 +411,7 @@ output = {
   :degrees_of_freedom_within  => degrees_of_freedom_within,
   :degrees_of_freedom_between => degrees_of_freedom_between,
   :f_test                     => f_test,
-  :f_bars                     => '|' * f_test,
+# :f_bars                     => '|' * f_test,
 }
 
 print_header 'ANOVA Breakdown.'
